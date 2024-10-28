@@ -11,3 +11,5 @@ subnet_name_by_zone = {
   "2" = "default",
   "3" = "default",
 }
+vpn_base_domain = "any-domain-name"
+vpn_client_names = [ "demo01" ]

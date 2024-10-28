@@ -119,7 +119,7 @@ variable "ccloud_cluster_availability" {
 
 variable "ccloud_cluster_ckus" {
     type = number
-    default = 2
+    default = 1
     description = "The number of CKUs to use if the Confluent Cloud Kafka cluster is \"dedicated\"."
     validation {
         condition = var.ccloud_cluster_ckus>=1
@@ -148,4 +148,22 @@ variable "ccloud_cluster_generate_client_config_files" {
 variable "azure_resource_group_name" {
     type = string
     description = "The name of the resource group to be created. Will NOT be suffixed"
+}
+
+variable "vpn_base_domain" {
+    description = "The base domain used for creating the vpn gateway SSL certificate. Optional, does not have to be a valid domain"
+    type = string
+    default = "acme.invalid"
+}
+
+variable "vpn_client_names" {
+    description = "List of client names (no whitespace allowed) to generate VPN client certificates for. If empty, generates just one certificate for the current username"
+    type = list(string)
+    default = []
+}
+
+variable "ccloud_create_api_keys" {
+    type = bool
+    default = false
+    description = "If set to true, creates api keys and roles"
 }

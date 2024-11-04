@@ -13,5 +13,3 @@ subnet_name_by_zone = {
 }
 vpn_base_domain = "any-domain-name"
 vpn_client_names = [ "demo01" ]
-dns_vpngw_resource_group = "your-resource-group"
-dns_vpngw_zone = "your-existing-zone.invalid"

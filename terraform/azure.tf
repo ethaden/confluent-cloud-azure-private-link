@@ -279,7 +279,6 @@ resource "local_sensitive_file" "openvpn_config_files" {
 
   content = templatefile("${path.module}/templates/openvpn-config.tpl",
   {
-    vpn_gateway_endpoint = "${var.dns_vpngw_record}.${var.dns_vpngw_zone}",
     ca_cert_pem = "${module.terraform_pki.ca_cert.cert_pem}",
     client_cert_pem = module.terraform_pki.client_certs[each.key].cert_pem,
     client_key_pem = module.terraform_pki.client_keys[each.key].private_key_pem
@@ -292,30 +291,19 @@ data "external" "ca_der" {
   program = ["${path.module}/convert-pem-to-der.sh", "${local.cert_path}/ca_crt.pem"]
 }
 
-data "azurerm_dns_zone" "vpngw_zone" {
-  name = var.dns_vpngw_zone
-  resource_group_name = var.dns_vpngw_resource_group
-}
-resource "azurerm_dns_a_record" "vpngw_record" {
-  name                = var.dns_vpngw_record
-  resource_group_name = var.dns_vpngw_resource_group
-  zone_name           = var.dns_vpngw_zone
-  ttl                 = var.dns_vpngw_ttl
-  target_resource_id = azurerm_public_ip.vpngw.id
-}
+# resource "azurerm_lb" "intra_vnet_lb" {
+#   name                = "${local.resource_prefix}_intra_vnet_lb"
+#   location            = azurerm_resource_group.rg.location
+#   resource_group_name = azurerm_resource_group.rg.name
 
-resource "azurerm_lb" "intra_vnet_lb" {
-  name                = "${local.resource_prefix}_intra_vnet_lb"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+#   frontend_ip_configuration {
+#     name                 = "PublicIPAddress"
+#     public_ip_address_id = azurerm_public_ip.example.id
+#   }
+# }
 
-  frontend_ip_configuration {
-    name                 = "PublicIPAddress"
-    public_ip_address_id = azurerm_public_ip.example.id
-  }
-}
 
-resource "azurerm_lb_backend_address_pool" "example" {
-  loadbalancer_id = azurerm_lb.example.id
-  name            = "BackEndAddressPool"
-}
+# resource "azurerm_lb_backend_address_pool" "example" {
+#   loadbalancer_id = azurerm_lb.example.id
+#   name            = "BackEndAddressPool"
+# }

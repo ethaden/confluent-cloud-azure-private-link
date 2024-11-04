@@ -173,28 +173,6 @@ variable "ccloud_create_api_keys" {
     default = false
     description = "If set to true, creates api keys and roles"
 }
-
-variable dns_vpngw_resource_group {
-    type = string
-    description = "The resource group of the DNS zone where to add an A record pointing to the VPN gateway"
-}
-
-variable dns_vpngw_zone {
-    type = string
-    description = "The DNS zone where to add an A record pointing to the VPN gateway"
-}
-
-variable dns_vpngw_record {
-    type = string
-    default = "vpngw"
-    description = "The name of the A record pointing to the VPN gateway in the zone"
-}
-variable dns_vpngw_ttl {
-    type = number
-    default = 60
-    description = "The TTl for the VPN Gateway public name"
-}
-
 variable dns_resolver_ip {
     type = string
     default = "10.0.252.10"

@@ -1,13 +1,27 @@
 client
 dev tun
-proto udp
-remote ${vpn_gateway_endpoint} 443
-remote-random-hostname
+proto tcp
+ADD both the "remote" and the "verify-x609-name" lines here as they are provided in the connection file created by Microsoft which can be downloaded
+
+remote-cert-tls server
+
+dev tun
+proto tcp
 resolv-retry infinite
 nobind
-remote-cert-tls server
+
+auth SHA256
 cipher AES-256-GCM
+persist-key
+persist-tun
+
+tls-timeout 30
+tls-version-min 1.2
+key-direction 1
+
 verb 3
+
+# P2S CA root certificate
 <ca>
 ${ca_cert_pem}
 </ca>
@@ -25,7 +39,3 @@ ${client_cert_pem}
 <key>
 ${client_key_pem}
 </key>
-
-reneg-sec 0
-
-

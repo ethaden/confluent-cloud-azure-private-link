@@ -156,6 +156,12 @@ variable "vpn_base_domain" {
     default = "acme.invalid"
 }
 
+variable "vpn_ca_common_name" {
+    type = string
+    default = "Confluent_Inc_VPN_CA"
+    description = "The common name of the generated CA used for VPN"
+}
+
 variable "vpn_client_names" {
     description = "List of client names (no whitespace allowed) to generate VPN client certificates for. If empty, generates just one certificate for the current username"
     type = list(string)
@@ -166,4 +172,37 @@ variable "ccloud_create_api_keys" {
     type = bool
     default = false
     description = "If set to true, creates api keys and roles"
+}
+
+variable dns_vpngw_resource_group {
+    type = string
+    description = "The resource group of the DNS zone where to add an A record pointing to the VPN gateway"
+}
+
+variable dns_vpngw_zone {
+    type = string
+    description = "The DNS zone where to add an A record pointing to the VPN gateway"
+}
+
+variable dns_vpngw_record {
+    type = string
+    default = "vpngw"
+    description = "The name of the A record pointing to the VPN gateway in the zone"
+}
+variable dns_vpngw_ttl {
+    type = number
+    default = 60
+    description = "The TTl for the VPN Gateway public name"
+}
+
+variable dns_resolver_ip {
+    type = string
+    default = "10.0.252.10"
+    description = "IP address of the DNS resolver to be provisioned. Must be inside of var.dns_resolver_subnet."
+}
+
+variable dns_resolver_subnet {
+    type = string
+    default = "10.0.252.0/24"
+    description = "The subnet of the DNS resolver to be provisioned. Do not use this subnet for anything else but the dns resolver"
 }

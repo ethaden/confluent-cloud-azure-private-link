@@ -1,9 +1,9 @@
 module "terraform_pki" {
     source = "github.com/ethaden/terraform-local-pki.git"
 
-    cert_path = "${var.generated_files_path}/client_vpn_pki"
+    cert_path = local.cert_path
     organization = "Confluent Inc"
-    ca_common_name = "Confluent Inc ${local.username} Test CA"
+    ca_common_name = var.vpn_ca_common_name
     server_names = { "vpn-gateway": "vpn-gateway.${var.vpn_base_domain}" }
     client_names = local.vpn_client_names_to_domain
     # Unfortunately, AWS Client VPN Endpoints only support RSA with max. 2048 bits
@@ -35,14 +35,61 @@ resource "azurerm_virtual_network" "vnet" {
   }
 }
 
+resource "azurerm_virtual_network_dns_servers" "vnet_dns" {
+  virtual_network_id = azurerm_virtual_network.vnet.id
+  dns_servers        = [var.dns_resolver_ip]
+}
+
 resource "azurerm_subnet" "subnet" {
-  for_each = var.subnet_name_by_zone
+  address_prefixes = ["10.0.1.0/24"]
 
-  address_prefixes = ["10.0.${each.key}.0/24"]
-
-  name                 = each.value
+  name                 = "default"
   virtual_network_name = azurerm_virtual_network.vnet.name
   resource_group_name  = azurerm_resource_group.rg.name
+}
+
+resource "azurerm_subnet" "vpngwsubnet" {
+  address_prefixes = ["10.0.253.0/24"]
+
+  name                 = "GatewaySubnet"
+  virtual_network_name = azurerm_virtual_network.vnet.name
+  resource_group_name  = azurerm_resource_group.rg.name
+}
+
+resource "azurerm_subnet" "resolversubnet" {
+  address_prefixes = [var.dns_resolver_subnet]
+
+  name                 = "ResolverSubnet"
+  virtual_network_name = azurerm_virtual_network.vnet.name
+  resource_group_name  = azurerm_resource_group.rg.name
+
+  delegation {
+    name = "Microsoft.Network.dnsResolvers"
+    service_delegation {
+      actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
+      name    = "Microsoft.Network/dnsResolvers"
+    }
+  }
+}
+resource "azurerm_private_dns_resolver" "resolver" {
+  name                = "${local.resource_prefix}_dns_resolver"
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+  virtual_network_id  = azurerm_virtual_network.vnet.id
+}
+
+resource "azurerm_private_dns_resolver_inbound_endpoint" "resolver_inbound" {
+  name                    = "${local.resource_prefix}_dns_resolver_inbound"
+  private_dns_resolver_id = azurerm_private_dns_resolver.resolver.id
+  location                = azurerm_private_dns_resolver.resolver.location
+  ip_configurations {
+    private_ip_allocation_method = "Static"
+    private_ip_address           = var.dns_resolver_ip
+    subnet_id                    = azurerm_subnet.resolversubnet.id
+  }
+  tags = {
+    key = "value"
+  }
 }
 
 locals {
@@ -64,7 +111,7 @@ resource "azurerm_private_endpoint" "endpoint" {
   location            = var.azure_region
   resource_group_name = azurerm_resource_group.rg.name
 
-  subnet_id = azurerm_subnet.subnet[each.key].id
+  subnet_id = azurerm_subnet.subnet.id
 
   private_service_connection {
     name                              = "confluent-${local.network_id}-${each.key}"
@@ -116,44 +163,82 @@ resource "azurerm_virtual_wan" "vpn" {
   location            = azurerm_resource_group.rg.location
 }
 
-resource "azurerm_virtual_hub" "vpn" {
-  name                = "${local.resource_prefix}_hub"
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_resource_group.rg.location
-  virtual_wan_id      = azurerm_virtual_wan.vpn.id
-  hub_routing_preference = "VpnGateway"
-  address_prefix      = "10.0.253.0/24"
-}
+# resource "azurerm_virtual_hub" "vpn" {
+#   name                = "${local.resource_prefix}_hub"
+#   resource_group_name = azurerm_resource_group.rg.name
+#   location            = azurerm_resource_group.rg.location
+#   virtual_wan_id      = azurerm_virtual_wan.vpn.id
+#   hub_routing_preference = "VpnGateway"
+#   address_prefix      = "10.0.253.0/24"
+# }
 
-resource "azurerm_vpn_server_configuration" "vpn_config" {
-  name                     = "${local.resource_prefix}-vpn-config"
-  resource_group_name      = azurerm_resource_group.rg.name
-  location                 = azurerm_resource_group.rg.location
-  vpn_authentication_types = ["Certificate"]
-  vpn_protocols = ["OpenVPN"]
+# resource "azurerm_vpn_server_configuration" "vpn_config" {
+#   name                     = "${local.resource_prefix}-vpn-config"
+#   resource_group_name      = azurerm_resource_group.rg.name
+#   location                 = azurerm_resource_group.rg.location
+#   vpn_authentication_types = ["Certificate"]
+#   vpn_protocols = ["OpenVPN"]
 
-  client_root_certificate {
-    name             = "${local.resource_prefix}_VPNGW_RootCA"
-    public_cert_data = module.terraform_pki.server_certs["vpn-gateway"].cert_pem
-  }
-}
+#   client_root_certificate {
+#     #name             = "${local.resource_prefix}_VPNGW_RootCA"
+#     name = var.vpn_ca_common_name
+#     #public_cert_data = module.terraform_pki.server_certs["vpn-gateway"].cert_pem
+#     public_cert_data = data.external.ca_der.result["CERT_DER"]
+#   }
+# }
 
-resource "azurerm_point_to_site_vpn_gateway" "vpn_gw" {
+# The following is not working as no public IP can be configured
+# resource "azurerm_point_to_site_vpn_gateway" "vpn_gw" {
+#   name                = "${local.resource_prefix}_vpngw"
+#   location            = azurerm_resource_group.rg.location
+#   resource_group_name = azurerm_resource_group.rg.name
+#   virtual_hub_id      = azurerm_virtual_hub.vpn.id
+#   vpn_server_configuration_id = azurerm_vpn_server_configuration.vpn_config.id
+#   # We route through public internet. Be careful!
+#   routing_preference_internet_enabled = true
+#   scale_unit                  = 1
+#   connection_configuration {
+#     name = "${local.resource_prefix}-gateway-config"
+
+#     vpn_client_address_pool {
+#       address_prefixes = [
+#         "10.0.254.0/24"
+#       ]
+#     }
+#   }
+# }
+
+# Instead, a virtual network gateway is used
+resource "azurerm_virtual_network_gateway" "vpngw" {
   name                = "${local.resource_prefix}_vpngw"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-  virtual_hub_id      = azurerm_virtual_hub.vpn.id
-  vpn_server_configuration_id = azurerm_vpn_server_configuration.vpn_config.id
-  # We route through public internet. Be careful!
-  routing_preference_internet_enabled = true
-  scale_unit                  = 1
-  connection_configuration {
-    name = "${local.resource_prefix}-gateway-config"
 
-    vpn_client_address_pool {
-      address_prefixes = [
-        "10.0.254.0/24"
-      ]
+  type     = "Vpn"
+  vpn_type = "RouteBased"
+
+  active_active = false
+  enable_bgp    = false
+  sku           = "VpnGw1AZ"
+  remote_vnet_traffic_enabled = true
+  
+
+  ip_configuration {
+    name                          = "vnetGatewayConfig"
+    public_ip_address_id          = azurerm_public_ip.vpngw.id
+    private_ip_address_allocation = "Dynamic"
+    subnet_id                     = azurerm_subnet.vpngwsubnet.id
+
+  }
+  
+  vpn_client_configuration {
+    address_space = ["10.254.0.0/24"]
+    vpn_client_protocols = ["OpenVPN"]
+    vpn_auth_types = ["Certificate"]
+
+    root_certificate {
+      name = var.vpn_ca_common_name
+      public_cert_data = data.external.ca_der.result["CERT_DER"]
     }
   }
 }
@@ -165,14 +250,15 @@ resource "azurerm_point_to_site_vpn_gateway" "vpn_gw" {
 #   address_prefixes     = ["10.0.254.0/24"]
 # }
 
-# resource "azurerm_public_ip" "vpngw" {
-#   name                = "${local.resource_prefix}_vpngw_public_ip"
-#   resource_group_name = azurerm_resource_group.rg.name
-#   location            = azurerm_resource_group.rg.location
-#   allocation_method   = "Static"
-#   sku                 = "Standard"
-#   tags = local.confluent_tags
-# }
+resource "azurerm_public_ip" "vpngw" {
+  name                = "${local.resource_prefix}_vpngw_public_ip"
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+  allocation_method   = "Static"
+  sku                 = "Standard"
+  zones               = ["1"]
+  tags = local.confluent_tags
+}
 
 # resource "azurerm_firewall" "vpngw" {
 #   name                = "${local.resource_prefix}_vpngw_firewall"
@@ -188,16 +274,32 @@ resource "azurerm_point_to_site_vpn_gateway" "vpn_gw" {
 #   }
 # }
 
-# resource "local_sensitive_file" "openvpn_config_files" {
-#   for_each = toset(local.vpn_client_names)
+resource "local_sensitive_file" "openvpn_config_files" {
+  for_each = toset(local.vpn_client_names)
 
-#   content = templatefile("${path.module}/templates/openvpn-config.tpl",
-#   {
-#     vpn_gateway_endpoint = aws_ec2_client_vpn_endpoint.vpn.dns_name,
-#     ca_cert_pem = "${module.terraform_pki.ca_cert.cert_pem}",
-#     client_cert_pem = module.terraform_pki.client_certs[each.key].cert_pem,
-#     client_key_pem = module.terraform_pki.client_keys[each.key].private_key_pem
-#   }
-#   )
-#   filename = "${var.generated_files_path}/openvpn_config_files/openvpn-config-${each.key}.ovpn"
-# }
+  content = templatefile("${path.module}/templates/openvpn-config.tpl",
+  {
+    vpn_gateway_endpoint = "${var.dns_vpngw_record}.${var.dns_vpngw_zone}",
+    ca_cert_pem = "${module.terraform_pki.ca_cert.cert_pem}",
+    client_cert_pem = module.terraform_pki.client_certs[each.key].cert_pem,
+    client_key_pem = module.terraform_pki.client_keys[each.key].private_key_pem
+  }
+  )
+  filename = "${var.generated_files_path}/openvpn_config_files/openvpn-config-${each.key}.ovpn"
+}
+
+data "external" "ca_der" {
+  program = ["${path.module}/convert-pem-to-der.sh", "${local.cert_path}/ca_crt.pem"]
+}
+
+data "azurerm_dns_zone" "vpngw_zone" {
+  name = var.dns_vpngw_zone
+  resource_group_name = var.dns_vpngw_resource_group
+}
+resource "azurerm_dns_a_record" "vpngw_record" {
+  name                = var.dns_vpngw_record
+  resource_group_name = var.dns_vpngw_resource_group
+  zone_name           = var.dns_vpngw_zone
+  ttl                 = var.dns_vpngw_ttl
+  target_resource_id = azurerm_public_ip.vpngw.id
+}

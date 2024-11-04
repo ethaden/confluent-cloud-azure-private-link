@@ -26,6 +26,7 @@ locals {
     resource_prefix = var.resource_prefix!="" ? var.resource_prefix : local.username
     vpn_client_names = length(var.vpn_client_names)!=0 ? var.vpn_client_names: [local.username]
     vpn_client_names_to_domain = { for client_name in local.vpn_client_names: client_name => "${client_name}.${var.vpn_base_domain}" }
+    cert_path = "${var.generated_files_path}/client_vpn_pki"
 }
 
 output "confluent_tags" {

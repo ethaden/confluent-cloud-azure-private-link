@@ -6,11 +6,11 @@
 api-key.txt
 
 # Terraform
-terraform/terraform.tfvars
-terraform/files
-terraform/*.tfstate
-terraform/.terraform
-terraform/.terraform.lock.hcl
-terraform/aws-remote-tfstate-s3.tf
-terraform/terraform.tfstate.backup
-terraform/generated
+terraform.tfvars
+*.tfstate
+.terraform
+.terraform.lock.hcl
+terraform/*/files
+terraform/*/aws-remote-tfstate-s3.tf
+terraform.tfstate.backup
+terraform/*/generated

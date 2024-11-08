@@ -14,7 +14,31 @@ You need the following to run this demo:
 
 ## Getting started
 
+
+### Base Networking with Terraform (optional)
+You can start by setting up your base networking. Just enter `terraform/1-base-networking` and 
+set/customize some variables by copying `terraform.tfvars.template` to `terraform.tfvars`.
+
+Afterwards run:
+
+```shell
+terraform init
+```
+
+Then run:
+
+```shell
+terraform plan
+```
+
+In this demo, we will set up a VPN gateway. This will allow you to create a connection to the newly created VNet on Azure and allows you to create cluster-specific resources with terraform. That wouldn't be possible otherwise as we are setting up a dedicated cluster with private networking.
+
+
+### Confluent Cloud Dedicated cluster with Private Link
+
+Now enter the folder `terraform/2-dedicated-cluster-with-private-link`.
 Set/customize some variables by copying `terraform.tfvars.template` to `terraform.tfvars`.
+Make sure the name of the resource group, and the other Azure settings match the ones you used in the previous step.
 
 Open a shell and change into the `terraform` subfolder. In order to use your Confluent Cloud service account, either put your `api.txt` into that folder, or set the following environment variables to your API key:
 
@@ -42,6 +66,37 @@ If you agree with the plan, deploy the resources (that will take some time):
 ```shell
 terraform apply
 ```
+
+Setting up the resources will take a long time. Grab several coffees and relax.
+
+### Custom DNS split routing
+
+If terraform finished successfully your cluster should be ready and a private link connectivity should work in principle. However, to make it work through your VPN tunnel, some extra work needs to be done.
+
+Please find a pre-configured openvpn config file in the subfolder `terraform/1-base-networking(generated/openvpn_config_files`. Unfortunately, this needs to completed manually. For this, go to the newly created virtual network gateway in your Azure resource group, open `Settings` and `Point-to-site configuration`. Get the configuration by clicking on "Download VPN client". You can either use the file openvpn config found in that zip file directly or pick the hostname and the pre-shared key out of it and complete the pre-configured config file created by terraform with it.
+
+Then, if you are on Ubuntu (used in this demo). Copy the result to `/etc/openvpn/aws.conf` and install openvpn and its helper script for dns resolution:
+
+```shell
+sudo apt install openvpn openvpn-systemd-resolved
+```
+
+Then start the vpn connection:
+
+```shell
+systemctl start openvpn@aws
+```
+
+You should now be able to use a direct connection to your Azure VNet. Check if DNS is forwarded to your Azure resolver for the confluent cloud bootstrap server and broker hostnames:
+
+```shell
+resolvectl status
+```
+
+You should see a custom domain server on the other end of your VPN connection being used for the particular subdomain used by your confluent cloud cluster.
+DNS resolution is forwarded to the standard Azure resolver automatically. The setup has configured that domain as custom domain for your VNet. The IP addresses point to your private link endpoints.
+
+### Set up cluster access
 
 == Testing the setup
 

@@ -1,0 +1,6 @@
+#tf_last_updated = "2024-07-16T18:26:59+00:00"
+#azure_subscription_id = ""
+#azure_tenant_id = ""
+#azure_resource_group_name = 
+vpn_base_domain = "any-domain-name"
+vpn_client_names = [ "demo01" ]

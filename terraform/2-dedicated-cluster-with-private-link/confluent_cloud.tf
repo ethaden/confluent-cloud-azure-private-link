@@ -111,6 +111,10 @@ resource "azurerm_private_endpoint" "endpoint" {
     private_connection_resource_alias = lookup(confluent_network.private-link.azure[0].private_link_service_aliases, each.key, "\n\nerror: ${each.key} subnet is missing from CCN's Private Link service aliases")
     request_message                   = "PL"
   }
+  ip_configuration {
+    name = "confluent-${local.network_id}-${each.key}"
+    private_ip_address = cidrhost(data.azurerm_subnet.subnet.address_prefix, each.key+3)
+  }
   tags = local.confluent_tags
 }
 

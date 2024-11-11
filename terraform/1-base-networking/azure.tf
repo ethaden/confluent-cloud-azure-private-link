@@ -161,4 +161,5 @@ resource "local_sensitive_file" "openvpn_config_files" {
 
 data "external" "ca_der" {
   program = ["${path.module}/convert-pem-to-der.sh", "${local.cert_path}/ca_crt.pem"]
+  depends_on = [ module.terraform_pki.ca_cert ]
 }

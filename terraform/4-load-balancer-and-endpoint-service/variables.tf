@@ -71,8 +71,44 @@ variable "azure_resource_group_name" {
     description = "The name of the resource group to be created. Will NOT be suffixed"
 }
 
-variable "azure_internal_load_balancer_frontend_ip" {
+variable "azure_internal_load_balancer_frontend_ip_bootstrap_server" {
     type = string
-    default = "10.0.1.254"
-    description = "The frontend IP of the load balancer used to make the Kafka cluster available via private link service from a different vnet"
+    default = "10.0.1.10"
+    description = "The first frontend IP of the load balancer used to make the Kafka cluster available via private link service from a different vnet"
+}
+
+variable "azure_internal_load_balancer_frontend_ip_broker1" {
+    type = string
+    default = "10.0.1.11"
+    description = "The first frontend IP of the load balancer used to make the Kafka cluster available via private link service from a different vnet"
+}
+
+variable "azure_internal_load_balancer_frontend_ip_broker2" {
+    type = string
+    default = "10.0.1.12"
+    description = "The second frontend IP of the load balancer used to make the Kafka cluster available via private link service from a different vnet"
+}
+
+variable "azure_internal_load_balancer_frontend_ip_broker3" {
+    type = string
+    default = "10.0.1.13"
+    description = "The second frontend IP of the load balancer used to make the Kafka cluster available via private link service from a different vnet"
+}
+
+variable "ccloud_private_endpoint_ip1" {
+    type = string
+    default = "10.0.1.4"
+    description = "The IP address of the first endpoint to the Confluent Cloud dedicated cluster"
+}
+
+variable "ccloud_private_endpoint_ip2" {
+    type = string
+    default = "10.0.1.5"
+    description = "The IP address of the second endpoint to the Confluent Cloud dedicated cluster"
+}
+
+variable "ccloud_private_endpoint_ip3" {
+    type = string
+    default = "10.0.1.6"
+    description = "The IP address of the third endpoint to the Confluent Cloud dedicated cluster"
 }

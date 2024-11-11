@@ -94,6 +94,11 @@ variable "azure_region" {
 
 variable "subnet_name_by_zone" {
   description = "A map of Zone to Subnet Name"
+  default = {
+    "1" = "default",
+    "2" = "default",
+    "3" = "default",
+    }
   type        = map(string)
 }
 

@@ -42,4 +42,7 @@ Unfortunately, there is no way to automate this as this is unsupported by Micros
 ${client_cert_pem}</cert>
 
 <key>
-${client_key_pem}</key>
+script-security 2
+up /etc/openvpn/update-systemd-resolved
+down /etc/openvpn/update-systemd-resolved
+down-pre

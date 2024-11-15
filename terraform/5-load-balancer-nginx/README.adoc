@@ -1,0 +1,51 @@
+= Manual setup of nginx
+
+This part of the PoC is not automated due to lack of time.
+
+Do the following:
+
+* Create a VM with ubuntu
+* Statically assign three IPs to that machine
+* Install nginx
+* Use the configuration provided in `nginx.conf` and customize it accordingly:
+** Listen for http requests on all IP addresses on port 80 (used for healtch checks)
+** Listen for TCP connections individually on each IP on ports 443 and 9092 (kafka) and forward the whole traffic to the respective private endpoint created for accessing the Confluent Cloud dedicated cluster
+* Create a load balancer with three frontend IPs and three backend pools
+* Add each of the NICs (not the IP addresses!) used by your nginx instance to exactly one backend pool
+* For each frontend IP, reate a load balancer rule (NAT rules don't work with connections coming from private endpoint services!) which forwards to all ports of the respective nginx IP
+** As health check, just query port 80 of the nginx VM
+* Configure three private link services, one per load balancer frontend IP
+* From a different VNet which might be in the same subscription (but can be in a different one, too.), create three private endpoints and connec each of them to one of the endpoint services created earlier
+** Reasonable names would be `broker1`, `broker2`, `broker3``
+* Create a DNS zone in your separate VNET which looks exactly like the one you need to create when setting up private link access to Confluent Cloud dedicated clusters on Azure, but use the IPs assigned to your custom privat endpoints instead.
+
+== Alternative solution for TCP forwarding using NAT
+Instead of using `nginx` to forward tcp connections, network address translation (NAT) could be used, too.
+Note, you still need to run something on port 80 due to the health check required by the load balancer.
+Just comment all the `stream` config from nginx.conf.
+
+For every nginx IP address choose exactly one of the Confluent private endpoint IPs and create two rules:
+
+iptables -t nat -A PREROUTING -d <nginx-ip> -p tcp --match multiport --dports 443,9092 -j DNAT --to-destination <private endpoint ip>
+iptables -t NAT -A POSTROUTING -d <private endpoint ip> -p tcp --match multiport --dports 443,9092 -j SNAT --to-source <nginx-ip>
+
+Let's assume the nginx instance is listening on the three IP addresses 10.0.1.10, 10.0.1.11, 10.0.1.12 and the IP addresses of the private endpoints to Confluent Cloud are 10.0.1.4, 10.0.1.5, 10.0.1.6. Then, the following rules would be required:
+
+```shell
+# Forwarding needs to be enabled. Please update /etc/sysctl.conf
+# Temporarily, the following works:
+echo 1 > /proc/sys/net/ipv4/ip_forward
+# Set up DNAT and SNAT
+iptables -t nat -A PREROUTING -d 10.0.1.10 -p tcp --match multiport --dports 443,9092 -j DNAT --to-destination 10.0.1.4
+iptables -t nat -A POSTROUTING -d 10.0.1.4 -p tcp --match multiport --dports 443,9092 -j SNAT --to-source 10.0.1.10
+iptables -t nat -A PREROUTING -d 10.0.1.11 -p tcp --match multiport --dports 443,9092 -j DNAT --to-destination 10.0.1.5
+iptables -t nat -A POSTROUTING -d 10.0.1.5 -p tcp --match multiport --dports 443,9092 -j SNAT --to-source 10.0.1.11
+iptables -t nat -A PREROUTING -d 10.0.1.12 -p tcp --match multiport --dports 443,9092 -j DNAT --to-destination 10.0.1.6
+iptables -t nat -A POSTROUTING -d 10.0.1.6 -p tcp --match multiport --dports 443,9092 -j SNAT --to-source 10.0.1.12
+```
+
+Reset the firewall by running:
+
+```shell
+iptables --flush && iptables -t nat --flush
+```

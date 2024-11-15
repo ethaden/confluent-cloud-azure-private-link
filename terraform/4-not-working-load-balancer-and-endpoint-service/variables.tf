@@ -71,27 +71,21 @@ variable "azure_resource_group_name" {
     description = "The name of the resource group to be created. Will NOT be suffixed"
 }
 
-variable "azure_internal_load_balancer_frontend_ip_bootstrap_server" {
+variable "azure_internal_load_balancer_frontend_ip_broker1" {
     type = string
     default = "10.0.1.10"
     description = "The first frontend IP of the load balancer used to make the Kafka cluster available via private link service from a different vnet"
 }
 
-variable "azure_internal_load_balancer_frontend_ip_broker1" {
-    type = string
-    default = "10.0.1.11"
-    description = "The first frontend IP of the load balancer used to make the Kafka cluster available via private link service from a different vnet"
-}
-
 variable "azure_internal_load_balancer_frontend_ip_broker2" {
     type = string
-    default = "10.0.1.12"
+    default = "10.0.1.11"
     description = "The second frontend IP of the load balancer used to make the Kafka cluster available via private link service from a different vnet"
 }
 
 variable "azure_internal_load_balancer_frontend_ip_broker3" {
     type = string
-    default = "10.0.1.13"
+    default = "10.0.1.12"
     description = "The second frontend IP of the load balancer used to make the Kafka cluster available via private link service from a different vnet"
 }
 

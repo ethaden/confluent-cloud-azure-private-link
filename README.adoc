@@ -96,11 +96,17 @@ resolvectl status
 You should see a custom domain server on the other end of your VPN connection being used for the particular subdomain used by your confluent cloud cluster.
 DNS resolution is forwarded to the standard Azure resolver automatically. The setup has configured that domain as custom domain for your VNet. The IP addresses point to your private link endpoints.
 
-### Set up cluster access
+### Create resources in your dedicated cluster with Terraform
+
+If you have established a connection to your dedicated cluster via OpenVPN on the machine where you run Terraform, you can now create some test resources in that cluster by running the terraform code in `terraform/3-cluster-resources`.
+
+### Re-distribute your private link access to your dedicated cluster on Azure with your own private link service
+
+This step has not been automated for time reasons. Please follow the steps in `terraform/5-load-balancer-nginx/README.adoc`.
 
 == Testing the setup
 
-Please open a shell and enter the directory `terraform/generated`.
+Please open a shell and enter the directory `terraform/3-cluster-resources/generated`.
 
 Have a look at the config files pre-configured for you.
 
@@ -110,9 +116,11 @@ You can for example start producing to the new cluster like this (from a VM in t
 kafka-console-producer --producer.config client-clientReadWrite.conf --bootstrap-server <your-bootstrap-server:9092> --topic test
 ```
 
+### 
+
 == Wrapping things up
 
-You can destroy all created resources including the cluster in Confluent Cloud by running the following command:
+Destroy all manually created resources first. Then you can destroy all automatically created resources including the cluster in Confluent Cloud by running the following command:
 
 ```shell
 terraform destroy
